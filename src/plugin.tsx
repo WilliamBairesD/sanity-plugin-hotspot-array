@@ -8,6 +8,7 @@ export interface ImageHotspotOptions<HotspotFields = {[key: string]: unknown}> {
   pathRoot?: 'document' | 'parent'
   imagePath: string
   descriptionPath?: string
+  origin?: 'cloudinary' | 'sanity'
   tooltip?: ComponentType<HotspotTooltipProps<HotspotFields>>
 }
 

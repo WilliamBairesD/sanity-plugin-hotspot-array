@@ -37,6 +37,43 @@ export type HotspotItem<HotspotFields = {[key: string]: unknown}> = {
   y: number
 } & HotspotFields
 
+type CloudinaryImage = {
+  width: number
+  height: number
+  derived?: Array<{
+    secure_url: string
+  }>
+  secure_url?: string
+}
+
+// Extensions that must be removed from the end of file name
+const exts = ['psd']
+const pattern = new RegExp(`\\.(${exts.join('|')})$`, 'i')
+
+const getCloudinaryAssetUrl = (asset: CloudinaryImage): string => {
+  let assetUrl = asset?.derived?.[0]?.secure_url ?? asset?.secure_url
+  if (!assetUrl) return '' // Return an empty string if assetUrl is undefined
+
+  assetUrl = assetUrl.replace(pattern, '')
+
+  const urlParts = assetUrl.split('/upload/')
+  if (urlParts.length < 2) return assetUrl // Return original if format is unexpected
+
+  const lastSlashIndex = urlParts[1].lastIndexOf('/')
+  const existingParams = urlParts[1].substring(0, lastSlashIndex)
+
+  const params = []
+
+  if (!existingParams.includes('f_')) {
+    params.push('f_auto')
+  }
+  if (!existingParams.includes('q_')) {
+    params.push('q_auto')
+  }
+
+  return params.length > 0 ? `${urlParts[0]}/upload/${params.join(',')}/${urlParts[1]}` : assetUrl
+}
+
 export function ImageHotspotArray(
   props: ArrayOfObjectsInputProps<HotspotItem> & {imageHotspotOptions: ImageHotspotOptions},
 ): ReactNode {
@@ -84,6 +121,14 @@ export function ImageHotspotArray(
     const builder = imageUrlBuilder(sanityClient).dataset(sanityClient.config().dataset ?? '')
     const urlFor = (source: ImageValue) => builder.image(source)
 
+    if (imageHotspotOptions.origin === 'cloudinary' && hotspotImage) {
+      const cloudinaryHostspotImage = hotspotImage as CloudinaryImage
+      const aspectRatio = cloudinaryHostspotImage.width / cloudinaryHostspotImage.height
+      const width = 1200
+      const height = Math.round(width / aspectRatio)
+      return {width, height, url: getCloudinaryAssetUrl(cloudinaryHostspotImage)}
+    }
+
     if (hotspotImage?.asset?._ref) {
       const {aspectRatio} = getImageDimensions(hotspotImage.asset._ref)
       const width = 1200
@@ -94,7 +139,7 @@ export function ImageHotspotArray(
     }
 
     return null
-  }, [hotspotImage, sanityClient])
+  }, [hotspotImage, imageHotspotOptions.origin, sanityClient])
 
   const handleHotspotImageClick = useCallback(
     async (event: MouseEvent<HTMLImageElement>) => {
@@ -210,3 +255,5 @@ export function ImageHotspotArray(
     </Stack>
   )
 }
+
+export default getCloudinaryAssetUrl
